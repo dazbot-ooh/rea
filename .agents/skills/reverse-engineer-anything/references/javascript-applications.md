@@ -1,63 +1,92 @@
 # JavaScript and Electron application artifacts
 
-For captured or bundled JavaScript that needs readable source recovery, use
-`recover_javascript_sources` with an absolute `path` and absent
-`output_directory`. Supply related runtime/shared/lazy files in
-`additional_paths` when advertised, then analyze the returned `analysis_input`
-directory together. Each input retains its own snapshot, digest and byte-range
-provenance; inputs and recovered code are never executed. Recovery requires a
-caller-supplied Wakaru on Linux x64; see [the recovery guide](https://github.com/morluto/rea/blob/main/docs/javascript-recovery.md).
+To recover readable source from captured or bundled JavaScript, use
+`recover_javascript_sources` with an absolute `path` and no `output_directory`.
+When the connected schema advertises `additional_paths`, supply related runtime, shared, and lazy files in it.
+Then analyze the returned `analysis_input` directory together.
 
-Use `analyze_javascript_application` directly on the operator-supplied ASAR or
-extracted tree. When the question concerns known source paths and the connected
-schema advertises `source_paths`, select exact inventoried paths such as
-`["package.json", "main.js", "preload.js"]`. Include supporting manifests or
-source maps explicitly; dependencies are not implicitly analyzed. REA retains
-the complete artifact inventory and identity but reads source text and analyzes
-only selected files. The result and summary record `source_selection`; files
-outside scope and their relationships remain unknown, so partial application
-coverage does not mean the selected source failed. Use repeated `--source-path`
-on either static application CLI route. Omit the selection when the question
-requires complete application analysis. `detail: "summary"` reduces delivery
-and does not by itself reduce analysis work.
+Each input keeps its own snapshot, digest, and byte-range provenance.
+REA never executes inputs or recovered code.
 
-Exact `#alias` specifiers resolve through the importer's
-enclosing package `imports` map to package-local files; nested `node_modules`
-packages use their own map. Wildcard, recursive, and external-package import
-targets stay unresolved with that limitation. When size is unknown or large and the connected schema advertises
-`detail`, request `detail: "summary"`. This returns an `inspect_analysis_view`
-Evidence record with a distinct ID and a `normalized_result.parent_evidence_id`
-for the complete retained application analysis. Source-map contents are part of
-that static analysis. Read findings, coverage, limitations and unknowns, then
-follow a specific unanswered question. Older servers without `detail` return
-the complete application Evidence inline when it fits.
+Recovery needs a Wakaru that the caller supplies, on Linux x64.
+See [the recovery guide](https://github.com/morluto/rea/blob/main/docs/javascript-recovery.md).
 
-When the connected schema advertises `max_heap_mb` and `analysis_timeout_ms`,
-these select the isolated source analyzer's old-space heap and per-source
-deadline. Defaults are 1024 MiB and 300000 ms. They do not change the MCP
-process heap. A Bun-hosted REA does not enforce the heap choice; on Windows it
-instead limits the analyzer's committed memory to that choice plus a 512 MiB
-runtime reserve.
-Resource-limited analyses preserve completed static facts and
-report partial semantic coverage with specific unknown scopes; this does not
-mean the source is malformed. Inspect those limits before retrying a source.
-When expanded relationships exceed the parent's available memory, inspect the
-file's modules item view for retained `static_analysis` and
-`semantic_module_analysis`. Their facts remain available even when graph links
-are unknown. Cumulative result exhaustion can stop analysis before every file
-is examined; the inventory and remaining unknown scopes distinguish that case.
-Timeout or cancellation after source analysis begins retains partial Evidence
-in the same session. A returned `error.details.partial_observation` reference
-can be supplied directly to `inspect_analysis_view`. If the SDK cancels locally, retrieve its recorded ID from
-the Evidence bundle before inspecting the partial analysis.
+Use `analyze_javascript_application` directly on the ASAR or extracted tree that the operator supplies.
+Select exact inventoried source paths only when both of these conditions are true:
+
+- The question concerns known source paths.
+- The connected schema advertises `source_paths`.
+
+Then select exact inventoried paths, such as
+`["package.json", "main.js", "preload.js"]`.
+
+Include supporting manifests or source maps explicitly.
+REA does not analyze dependencies implicitly.
+REA retains the complete artifact inventory and identity.
+REA reads source text and analyzes only the selected files.
+The result and the summary record `source_selection`.
+
+Files outside the scope, and their relationships, stay unknown.
+Partial application coverage does not mean that the selected source failed.
+Use repeated `--source-path` on either static application CLI route.
+Omit the selection when the question needs complete application analysis.
+`detail: "summary"` reduces delivery.
+It does not by itself reduce analysis work.
+
+Exact `#alias` specifiers resolve through the `imports` map of the enclosing package of the importer.
+They resolve to package-local files.
+Nested `node_modules` packages use their own map.
+Wildcard, recursive, and external-package import targets stay unresolved with that limitation.
+
+When the size is unknown or large, and the connected schema advertises `detail`, request `detail: "summary"`.
+This returns an `inspect_analysis_view` Evidence record.
+The record has a distinct ID.
+It has a `normalized_result.parent_evidence_id` for the complete retained application analysis.
+Source-map contents are part of that static analysis.
+Read the findings, coverage, limitations, and unknowns.
+
+Then follow a specific unanswered question.
+Older servers without `detail` return the complete application Evidence inline when it fits.
+
+When the connected schema advertises `max_heap_mb` and `analysis_timeout_ms`, these select two limits:
+
+- `max_heap_mb` selects the old-space heap of the isolated source analyzer.
+- `analysis_timeout_ms` selects the deadline for each source.
+
+The defaults are 1024 MiB and 300000 ms.
+They do not change the MCP process heap.
+A Bun-hosted REA does not enforce the heap choice.
+On Windows, it limits the committed memory of the analyzer.
+The limit is the heap choice plus a 512 MiB runtime reserve.
+
+Resource-limited analyses keep the completed static facts.
+They report partial semantic coverage with specific unknown scopes.
+This does not mean that the source is not valid.
+
+Inspect those limits before you retry a source.
+When expanded relationships exceed the available memory of the parent, inspect the modules item view of the file.
+Look for the retained `static_analysis` and `semantic_module_analysis`.
+
+Their facts stay available, even when graph links are unknown.
+Cumulative result exhaustion can stop analysis before REA examines every file.
+The inventory and the remaining unknown scopes show this case.
+
+Timeout or cancellation after source analysis begins retains partial Evidence in the same session.
+You can supply a returned `error.details.partial_observation` reference directly to `inspect_analysis_view`.
+If the SDK cancels locally, retrieve its recorded ID from the Evidence bundle.
+Do this before you inspect the partial analysis.
 
 ## Read a module without repeating analysis
 
 Use the actual returned parent ID, on the same connection, as `source.evidence_id`.
-The following IDs are placeholders to replace with returned values. When the
-module's node ID is not already known, page identities before selecting an item.
-Pages return only node IDs, paths and roles; choose a useful page size and follow
-`coverage.next_offset` when another page matters:
+
+The following IDs are placeholders.
+Replace them with returned values.
+When the node ID of the module is not known, page identities before you select an item.
+
+Pages return only node IDs, paths, and roles.
+Choose a useful page size.
+Follow `coverage.next_offset` when another page matters:
 
 ```json
 {
@@ -85,91 +114,140 @@ Select the relevant page entry by its exact `node_id` and recorded role:
 }
 ```
 
-Module pages include asset, bundled and source module roles, so one path can
-identify several entries. Use `selector.path` only when uniqueness is established;
-the returned node ID avoids needing a complete inventory to prove uniqueness. On ambiguity,
-select the matching node ID from the page or the error's candidates. Follow
-`next_offset` when another page matters. An item exposes that module node's
-recorded observations, identity, hashes, exports and source ranges; it does not
-include every child syntax observation, related edge or original source file.
+Module pages include asset, bundled, and source module roles.
+
+One path can identify several entries.
+
+Use `selector.path` only when you establish that the path is unique.
+The returned node ID removes the need for a complete inventory to prove uniqueness.
+
+On ambiguity, select the matching node ID from the page or from the candidates in the error.
+Follow `next_offset` when another page matters.
+An item exposes these facts of that module node:
+
+- the recorded observations
+- the identity
+- the hashes
+- the exports
+- the source ranges
+
+An item does not include every child syntax observation, related edge, or original source file.
 An absent item fact is not evidence of absence from the whole application.
 
 ## Trace only the remaining question
 
-Use `trace_application_feature` on the parent application Evidence for one
-literal node ID, route, string, API, IPC channel, module, or native export.
-Select `incoming` for relationships leading to the seed, `outgoing` for those
-leaving it, and `both` when the question needs both. Trace traversal includes
-containment relationships, so even a narrow seed can expand many nodes; a
-bidirectional trace can reach unrelated sibling modules. A module item or page
-is preferable when its observations already answer the question. Do not treat
-all reached nodes as participants in the feature.
+Use `trace_application_feature` on the parent application Evidence.
+Use it for one literal node ID, route, string, API, IPC channel, module, or native export.
+Select the direction:
 
-Reuse retained parent Evidence when the server advertises it, or supply complete
-Evidence inline. Include Hopper or Ghidra Evidence only when its artifact digest
-matches exactly.
+- `incoming` for relationships that lead to the seed.
+- `outgoing` for relationships that leave the seed.
+- `both` when the question needs both.
+
+Trace traversal includes containment relationships.
+Even a narrow seed can expand many nodes.
+A bidirectional trace can reach unrelated sibling modules.
+When the observations of a module item or page already answer the question, prefer the item or page to a trace.
+Do not treat all reached nodes as participants in the feature.
+
+Reuse the retained parent Evidence when the server advertises it.
+Otherwise, supply complete Evidence inline.
+Include Hopper or Ghidra Evidence only when its artifact digest matches exactly.
 
 ## Recover an oversized display
 
 An oversized response reports `resource_constraint` and
-`details.resource: "transport"`. Reuse
-`details.reported_limits.evidence_reference` with `inspect_analysis_view` for a
-summary, one module, or a stable page of module identities.
-`export_evidence_bundle` writes the complete canonical session to a
-caller-selected file. These workflows keep the original Evidence and coverage;
-a broad follow-up can also exceed framing.
+`details.resource: "transport"`.
+Reuse `details.reported_limits.evidence_reference` with `inspect_analysis_view`.
+Use it to get a summary, one module, or a stable page of module identities.
+`export_evidence_bundle` writes the complete canonical session to a file that the caller selects.
+These workflows keep the original Evidence and coverage.
+A broad follow-up can also exceed framing.
 
-A client can truncate a successful result inside its text envelope without a
-REA `resource_constraint`. Treat a truncation notice or incomplete JSON as a
-display limitation; do not claim the full record was examined. Reuse the known
-parent ID for smaller views, or export complete Evidence to a selected file
-while the session remains open. If the parent ID was lost from the preview,
-use the prior analysis summary or explicit ledger entries to recover it; do
-not invent an ID or rerun analysis just to reproduce the same display.
+A client can truncate a successful result inside its text envelope without a REA `resource_constraint`.
 
-BrowserWindow preferences, preload and contextBridge surfaces, IPC
-registrations, utility processes, and native binding requests are static syntax
-observations. Only a unique exact literal IPC channel match supports an inferred
-pairing. Dynamic or ambiguous channels remain unresolved. A requested `.node`
-member is not a verified native export. Never claim runtime reachability,
-registration, defaults, or policy enforcement from static analysis.
+Treat a truncation notice or incomplete JSON as a display limitation.
+Do not claim that you examined the full record.
 
-For version comparison, analyze each version once, then call
-`compare_application_versions`. Accept only its digest, source-map, structural
-fingerprint, or non-module semantic matches. Module ordinals and minified names
-are not persistent identity. Report added or removed only with complete
-opposite-side coverage; otherwise report unknown.
+Reuse the known parent ID for smaller views.
+Alternatively, export complete Evidence to a selected file while the session stays open.
 
-When the question asks how one exact exported callable's returned object shape
-changed, analyze each version once and then call
-`compare_javascript_export_shapes` with explicit module paths and export names.
-Use the returned IDs on the same connection, or complete inline Evidence
-records, from both analysis calls. Accept variant
-pairing only through the tool's unique exact literal discriminant. Read
-`property_inventories` and each change's `presence` before treating `unknown` as
-"the name was not observed": inventories list observed property names even when
-values stay unknown, with a `source_range` for each paired or unpaired variant.
+If the preview lost the parent ID, recover it from the prior analysis summary or from explicit ledger entries.
+Do not invent an ID.
+Do not rerun analysis only to reproduce the same display.
+
+These items are static syntax observations:
+
+- BrowserWindow preferences
+- preload and contextBridge surfaces
+- IPC registrations
+- utility processes
+- native binding requests
+
+Only a unique exact literal IPC channel match supports an inferred pairing.
+Dynamic or ambiguous channels stay unresolved.
+A requested `.node` member is not a verified native export.
+Never claim runtime reachability, registration, defaults, or policy enforcement from static analysis.
+
+For version comparison, analyze each version once.
+Then call `compare_application_versions`.
+Accept only these matches:
+
+- digest
+- source-map
+- structural fingerprint
+- non-module semantic
+
+Module ordinals and minified names are not persistent identity.
+Report added or removed only with complete opposite-side coverage.
+Otherwise, report unknown.
+
+Use this workflow when the question asks how the returned object shape of one exact exported callable changed.
+
+Analyze each version once.
+Then call `compare_javascript_export_shapes` with explicit module paths and export names.
+Use the returned IDs from both analysis calls on the same connection.
+Alternatively, use the complete inline Evidence records from both calls.
+
+Accept variant pairing only through the unique exact literal discriminant of the tool.
+Before you treat `unknown` as "the name was not observed", read `property_inventories` and the `presence` of each change.
+Inventories list observed property names even when values stay unknown.
+Each paired or unpaired variant has a `source_range`.
+
 Array holes and mutation-invalidated slots are not observed properties.
 Complete parent coverage reports presence-only
-`added`/`removed` independently of unresolved values. Cite the
-comparison Evidence and report JSON Pointer changes; dynamic values, ambiguous
-variants, and incomplete parent-property coverage stay unknown. This is static
-inference, not runtime behavior. When runtime semantics are needed, run
-behavioral probes against the relevant application versions and capture them
-through the available browser, Electron, or process workflows.
+`added`/`removed` independently of unresolved values.
+Cite the comparison Evidence and report JSON Pointer changes.
+These items stay unknown:
+
+- dynamic values
+- ambiguous variants
+- incomplete parent-property coverage
+
+This is static inference, not runtime behavior.
+When you need runtime semantics, run behavioral probes against the relevant application versions.
+Capture them through the available browser, Electron, or process workflows.
 
 ## Reusing application Evidence
 
-When advertised by the connected server, application trace and compare tools
-accept complete inline Evidence or
-`{"kind":"retained-evidence","evidence_id":"ev_<64 lowercase hex characters>"}`
-for their application input (`application`, or `left`/`right`). `inspect_analysis_view`
-uses the same retained-reference form in `source`, or portable inline Evidence,
-to project a summary, module page, or one module with its recorded observations. This notation is
-a template: replace it with the actual returned ID. Versions before 4.1.0 accept only full
-inline Evidence. Use the exact ID
-returned by the producer on the same MCP connection. Resolution does not run
-analysis or select a provider; findings remain inline. Native observation
-arrays still take full Evidence. `close_binary` clears retained references;
-export a bundle before closing, or supply portable inline Evidence in another
-connection. A missing reference includes its ID and recovery guidance.
+When the connected server advertises it, application trace and compare tools accept two forms for their application input (`application`, or `left`/`right`):
+
+- complete inline Evidence
+- `{"kind":"retained-evidence","evidence_id":"ev_<64 lowercase hex characters>"}`
+
+`inspect_analysis_view` uses the same retained-reference form in `source`, or portable inline Evidence.
+
+It projects a summary, a module page, or one module with its recorded observations.
+This notation is a template.
+Replace it with the actual returned ID.
+
+Versions before 4.1.0 accept only full inline Evidence.
+Use the exact ID that the producer returned on the same MCP connection.
+Resolution does not run analysis or select a provider.
+Findings stay inline.
+Native observation arrays still take full Evidence.
+
+`close_binary` clears retained references.
+Export a bundle before you close.
+Alternatively, supply portable inline Evidence in another connection.
+A missing reference includes its ID and recovery guidance.
